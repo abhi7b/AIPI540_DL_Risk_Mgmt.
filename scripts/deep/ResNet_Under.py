@@ -251,3 +251,5 @@ os.makedirs(save_dir, exist_ok=True)
 model_path = os.path.join(save_dir, "credit_risk_deep_model_under.h5")
 model.save(model_path)
 print(f"\nModel saved to {model_path}")
+
+# Code has been generated using Deepseek, Chatgpt, and Claude.ai then tweaked 
