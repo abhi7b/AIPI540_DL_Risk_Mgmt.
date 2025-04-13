@@ -23,6 +23,8 @@ Financial institutions face significant credit risks related to defaults, fraud,
 
 ### Traditional Machine Learning
 
+This approach uses ensemble models—Random Forest and AdaBoost. It evaluates two resampling techniques - ADASYN (adaptive synthetic oversampling) and SMOTEENN (combined oversampling and cleaning) to address class imbalance. The models are trained using the binary cross-entropy loss (implicitly through sklearn's built-in classifiers) and evaluated using recall and AUC. The validation set is used to tune hyperparameters for each resampling-model pair, and the best model is selected based on a combined recall–AUC validation score and tested on test set.
+
 ### Deep Learning 
 
 - **ResNet with Oversampling**
