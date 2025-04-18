@@ -11,7 +11,6 @@ Financial institutions face significant credit risks related to defaults, fraud,
 
 The pipeline is designed for memory efficiency and clean dataset preparation.
 The pipeline reads the `application_train.csv` file from the Home Credit raw data directory.
-The pipeline consists of the following steps:
 
 ### 1. **Raw Data Merging**
 Using Dask for memory-efficient processing of large CSV files, the pipeline merges the application training dataset from the Home Credit raw data directory.
@@ -64,8 +63,8 @@ This model uses a deeper residual neural network architecture with four residual
 The models were primarily evaluated using AUC and recall. AUC (Area Under the ROC Curve) was used to measure the model’s ability to distinguish between defaulters and non-defaulters across all thresholds, providing a robust, threshold-independent assessment. Recall was emphasized to ensure that the model successfully identified as many actual defaulters as possible, which is critical in minimizing credit risk exposure. Precision, F1 score, and threshold optimization are highlighted, but AUC and recall guided the main evaluation.
 
 - **Naive Model**
-ROC AUC: 0.6272
-Recall: 0.0000
+Test ROC AUC: 0.6272
+Test Recall: 0.0000
 
 - **Traditional Model**
 Overall Best Model Info:
