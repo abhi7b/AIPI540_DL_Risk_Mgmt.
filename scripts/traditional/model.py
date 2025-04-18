@@ -201,7 +201,7 @@ print(conf_matrix)
 # -------------------------------
 save_dir = "./models"
 os.makedirs(save_dir, exist_ok=True)
-model_path = os.path.join(save_dir, "best_model.pkl")
+model_path = os.path.join(save_dir, "tradtional_model.pkl")
 
 import joblib
 joblib.dump(overall_best_model, model_path)

@@ -263,12 +263,6 @@ print("Confusion Matrix:")
 conf_matrix = confusion_matrix(y_test, y_test_pred)
 print(conf_matrix)
 
-# Report on default detection performance
-tn, fp, fn, tp = conf_matrix.ravel()
-print(f"\nDefault Detection Performance:")
-print(f"Correctly identified defaults: {tp} out of {tp + fn} ({tp/(tp+fn):.2%})")
-print(f"Falsely flagged as defaults: {fp} out of {tn + fp} ({fp/(tn+fp):.2%})")
-
 
 # -------------------------------
 # 9. Save the Model
