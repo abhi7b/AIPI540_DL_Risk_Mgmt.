@@ -1,210 +1,201 @@
 #!/usr/bin/env python
+"""
+
+Load processed Home Credit data, apply resampling (ADASYN & SMOTEENN),
+tune RandomForest and AdaBoost via grid search on validation set,
+select overall best model, evaluate on test set, and save it.
+"""
+
 import os
 import warnings
 warnings.filterwarnings("ignore")
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import recall_score, roc_auc_score, precision_score, f1_score, classification_report, confusion_matrix
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.model_selection import ParameterGrid
+from sklearn.metrics import (
+    recall_score, roc_auc_score, precision_score, f1_score,
+    classification_report, confusion_matrix
+)
 from imblearn.over_sampling import ADASYN
 from imblearn.combine import SMOTEENN
-from sklearn.model_selection import ParameterGrid
+import joblib
 
 # -------------------------------
 # 1. Load Processed Datasets
 # -------------------------------
-processed_dir = os.path.join("data", "processed")
-train_path = os.path.join(processed_dir, "train.csv")
-val_path   = os.path.join(processed_dir, "validation.csv")
-test_path  = os.path.join(processed_dir, "test.csv")
+def load_datasets(processed_dir: str, target_col: str = "TARGET"):
+    train = pd.read_csv(os.path.join(processed_dir, "train.csv"))
+    val   = pd.read_csv(os.path.join(processed_dir, "validation.csv"))
+    test  = pd.read_csv(os.path.join(processed_dir, "test.csv"))
 
-print("Loading datasets...")
-train_df = pd.read_csv(train_path)
-val_df   = pd.read_csv(val_path)
-test_df  = pd.read_csv(test_path)
+    X_train = train.drop(columns=[target_col])
+    y_train = train[target_col]
+    X_val   = val.drop(columns=[target_col])
+    y_val   = val[target_col]
+    X_test  = test.drop(columns=[target_col])
+    y_test  = test[target_col]
 
-print("Train shape:", train_df.shape)
-print("Validation shape:", val_df.shape)
-print("Test shape:", test_df.shape)
+    print("Datasets loaded:")
+    print(f"  Train:      {X_train.shape}, labels: {y_train.shape}")
+    print(f"  Validation: {X_val.shape},   labels: {y_val.shape}")
+    print(f"  Test:       {X_test.shape},  labels: {y_test.shape}")
 
-target_col = "TARGET"
-
-# Separate features and target
-X_train_raw = train_df.drop(columns=[target_col])
-y_train = train_df[target_col]
-X_val_raw   = val_df.drop(columns=[target_col])
-y_val = val_df[target_col]
-X_test_raw  = test_df.drop(columns=[target_col])
-y_test = test_df[target_col]
+    return X_train, y_train, X_val, y_val, X_test, y_test
 
 # -------------------------------
-# 2. One-Hot Encode & Align Columns
+# 2. One-Hot Encode & Align
 # -------------------------------
-print("\nPerforming one-hot encoding on features...")
-X_train = pd.get_dummies(X_train_raw)
-X_val = pd.get_dummies(X_val_raw)
-X_test = pd.get_dummies(X_test_raw)
+def encode_and_align(X_train, X_val, X_test):
+    X_train_enc = pd.get_dummies(X_train)
+    X_val_enc   = pd.get_dummies(X_val)
+    X_test_enc  = pd.get_dummies(X_test)
 
-# Align columns across datasets (fill missing columns with 0)
-X_train, X_val = X_train.align(X_val, join="outer", axis=1, fill_value=0)
-X_train, X_test = X_train.align(X_test, join="outer", axis=1, fill_value=0)
+    X_train_enc, X_val_enc  = X_train_enc.align(X_val_enc,  join="outer", axis=1, fill_value=0)
+    X_train_enc, X_test_enc = X_train_enc.align(X_test_enc, join="outer", axis=1, fill_value=0)
 
-# Reindex validation and test sets to ensure column order matches X_train
-X_val = X_val[X_train.columns]
-X_test = X_test[X_train.columns]
+    # Ensure same column order
+    X_val_enc  = X_val_enc[X_train_enc.columns]
+    X_test_enc = X_test_enc[X_train_enc.columns]
 
-print("X_train shape:", X_train.shape)
-print("X_val shape:", X_val.shape)
-print("X_test shape:", X_test.shape)
+    print("After one-hot encoding & alignment:")
+    print(f"  X_train: {X_train_enc.shape}")
+    print(f"  X_val:   {X_val_enc.shape}")
+    print(f"  X_test:  {X_test_enc.shape}")
 
-# -------------------------------
-# 3. Define Resampling Techniques (ADASYN and SMOTEENN only)
-# -------------------------------
-samplers = {
-    "ADASYN": ADASYN(random_state=42),
-    "SMOTEENN": SMOTEENN(random_state=42)
-}
+    return X_train_enc, X_val_enc, X_test_enc
 
 # -------------------------------
-# 4. Evaluation Function (Recall & AUROC)
+# 3. Resampling Techniques
 # -------------------------------
-def score_model(model, X_val, y_val):
-    """Return recall, AUROC, and combined metric (average) using validation set."""
-    y_pred = model.predict(X_val)
-    y_proba = model.predict_proba(X_val)[:, 1]
-    
-    rec = recall_score(y_val, y_pred, pos_label=1)
-    auroc = roc_auc_score(y_val, y_proba)
-    combined = (rec + auroc) / 2
-    return rec, auroc, combined
+def get_samplers():
+    return {
+        "ADASYN": ADASYN(random_state=42),
+        "SMOTEENN": SMOTEENN(random_state=42)
+    }
 
 # -------------------------------
-# 5. Hyperparameter Tuning for RandomForest and AdaBoost
+# 4. Model Scoring
+# -------------------------------
+def score_model(model, X, y):
+    preds = model.predict(X)
+    proba = model.predict_proba(X)[:, 1]
+    rec   = recall_score(y, preds)
+    auc   = roc_auc_score(y, proba)
+    return rec, auc, (rec + auc) / 2
+
+# -------------------------------
+# 5. Hyperparameter Tuning
 # -------------------------------
 def tune_rf(X_train, y_train, X_val, y_val):
-    best_score = -1
-    best_model = None
-    best_params = None
-    param_grid = {
+    best_score, best_model, best_params = -1, None, None
+    grid = {
         "n_estimators": [100, 200],
         "max_depth": [10, 20],
         "class_weight": ["balanced"],
         "random_state": [42]
     }
-    for params in ParameterGrid(param_grid):
+    for params in ParameterGrid(grid):
         model = RandomForestClassifier(**params)
         model.fit(X_train, y_train)
-        rec, auroc, combined = score_model(model, X_val, y_val)
-        print(f"RF params: {params}, Validation Recall: {rec:.4f}, AUROC: {auroc:.4f}, Combined: {combined:.4f}")
-        if combined > best_score:
-            best_score = combined
-            best_model = model
-            best_params = params
-    print("Best RF parameters:", best_params)
-    print("Best RF Combined Metric: {:.4f}".format(best_score))
+        rec, auc, comb = score_model(model, X_val, y_val)
+        print(f"RF {params} → recall={rec:.4f}, auc={auc:.4f}, combined={comb:.4f}")
+        if comb > best_score:
+            best_score, best_model, best_params = comb, model, params
+    print("Best RF params:", best_params, f"combined={best_score:.4f}")
     return best_model, best_score
 
 def tune_ada(X_train, y_train, X_val, y_val):
-    best_score = -1
-    best_model = None
-    best_params = None
-    param_grid = {
+    best_score, best_model, best_params = -1, None, None
+    grid = {
         "n_estimators": [50, 100, 200],
         "learning_rate": [1.0, 0.5],
         "random_state": [42]
     }
-    for params in ParameterGrid(param_grid):
+    for params in ParameterGrid(grid):
         model = AdaBoostClassifier(**params)
         model.fit(X_train, y_train)
-        rec, auroc, combined = score_model(model, X_val, y_val)
-        print(f"AdaBoost params: {params}, Validation Recall: {rec:.4f}, AUROC: {auroc:.4f}, Combined: {combined:.4f}")
-        if combined > best_score:
-            best_score = combined
-            best_model = model
-            best_params = params
-    print("Best AdaBoost parameters:", best_params)
-    print("Best AdaBoost Combined Metric: {:.4f}".format(best_score))
+        rec, auc, comb = score_model(model, X_val, y_val)
+        print(f"Ada {params} → recall={rec:.4f}, auc={auc:.4f}, combined={comb:.4f}")
+        if comb > best_score:
+            best_score, best_model, best_params = comb, model, params
+    print("Best AdaBoost params:", best_params, f"combined={best_score:.4f}")
     return best_model, best_score
 
 # -------------------------------
-# 6. Loop Over Resampling Techniques, Tune, and Save Best Model
+# 6. Evaluate with Resampling & Tuning
 # -------------------------------
-overall_best_score = -1
-overall_best_model = None
-overall_best_info = {}
+def find_best_model(X_train, y_train, X_val, y_val):
+    overall_best = {"score": -1}
+    samplers = get_samplers()
 
-for sampler_name, sampler in samplers.items():
-    print("\n==============================================")
-    print("Resampling using:", sampler_name)
-    X_train_res_array, y_train_res = sampler.fit_resample(X_train, y_train)
-    X_train_res = pd.DataFrame(X_train_res_array, columns=X_train.columns)
-    
-    print("Resampled training shape:", X_train_res.shape)
-    print("Class distribution after", sampler_name, ":")
-    print(pd.Series(y_train_res).value_counts())
-    
-    print("\nTuning Random Forest with", sampler_name)
-    rf_model, rf_score = tune_rf(X_train_res, y_train_res, X_val, y_val)
-    
-    print("\nTuning AdaBoost with", sampler_name)
-    ada_model, ada_score = tune_ada(X_train_res, y_train_res, X_val, y_val)
-    
-    if rf_score >= ada_score:
-        best_model = rf_model
-        best_method = "RandomForest"
-        best_score = rf_score
-    else:
-        best_model = ada_model
-        best_method = "AdaBoost"
-        best_score = ada_score
-    
-    print(f"\nBest model with {sampler_name} is {best_method} with Combined Metric: {best_score:.4f}")
-    if best_score > overall_best_score:
-        overall_best_score = best_score
-        overall_best_model = best_model
-        overall_best_info = {
-            "resampling": sampler_name,
-            "model_type": best_method,
-            "combined_metric": best_score
-        }
+    for name, sampler in samplers.items():
+        print(f"\n--- Resampling: {name} ---")
+        X_res, y_res = sampler.fit_resample(X_train, y_train)
+        print(" Resampled shape:", X_res.shape)
+        print(" Class dist:", pd.Series(y_res).value_counts().to_dict())
 
-print("\n==============================================")
-print("Overall Best Model Info:")
-print(overall_best_info)
+        rf_model, rf_score = tune_rf(X_res, y_res, X_val, y_val)
+        ada_model, ada_score = tune_ada(X_res, y_res, X_val, y_val)
+
+        if rf_score >= ada_score:
+            chosen, score, method = rf_model, rf_score, "RandomForest"
+        else:
+            chosen, score, method = ada_model, ada_score, "AdaBoost"
+
+        print(f" Best with {name}: {method} (combined={score:.4f})")
+        if score > overall_best["score"]:
+            overall_best.update({
+                "model": chosen,
+                "resampling": name,
+                "model_type": method,
+                "score": score
+            })
+
+    print("\nOverall Best:", {
+        k: overall_best[k] for k in ("resampling", "model_type", "score")
+    })
+    return overall_best["model"], overall_best
 
 # -------------------------------
-# 7. Evaluate Best Model on Test Set
+# 7. Test Set Evaluation
 # -------------------------------
-print("\nEvaluating overall best model on test set...")
-y_test_pred = overall_best_model.predict(X_test)
-test_recall = recall_score(y_test, y_test_pred, pos_label=1)
-y_test_proba = overall_best_model.predict_proba(X_test)[:, 1]
-test_auroc = roc_auc_score(y_test, y_test_proba)
-test_precision = precision_score(y_test, y_test_pred, pos_label=1)
-test_f1 = f1_score(y_test, y_test_pred, pos_label=1)
+def evaluate_on_test(model, X_test, y_test):
+    preds = model.predict(X_test)
+    proba = model.predict_proba(X_test)[:, 1]
 
-print("Test Recall: {:.4f}".format(test_recall))
-print("Test AUROC: {:.4f}".format(test_auroc))
-print(f"Test Precision: {test_precision:.4f}")
-print(f"Test F1 Score: {test_f1:.4f}")
-
-print("\nClassification Report:")
-print(classification_report(y_test, y_test_pred))
-
-print("Confusion Matrix:")
-conf_matrix = confusion_matrix(y_test, y_test_pred)
-print(conf_matrix)
+    print("\nTest Set Performance:")
+    print(" Recall: ", recall_score(y_test, preds))
+    print(" AUROC:  ", roc_auc_score(y_test, proba))
+    print(" Precision:", precision_score(y_test, preds))
+    print(" F1 Score: ", f1_score(y_test, preds))
+    print(" Classification Report:\n", classification_report(y_test, preds))
+    print(" Confusion Matrix:\n", confusion_matrix(y_test, preds))
 
 # -------------------------------
-# 8. Save the Best Model
+# 8. Save Best Model
 # -------------------------------
-save_dir = "./models"
-os.makedirs(save_dir, exist_ok=True)
-model_path = os.path.join(save_dir, "best_model.pkl")
+def save_model(model, save_dir="models", fname="traditional_model.pkl"):
+    os.makedirs(save_dir, exist_ok=True)
+    path = os.path.join(save_dir, fname)
+    joblib.dump(model, path)
+    print(f"Model saved to {path}")
 
-import joblib
-joblib.dump(overall_best_model, model_path)
-print(f"Model saved to {model_path}")
+# -------------------------------
+# Main Execution
+# -------------------------------
+def main():
+    proc_dir = os.path.join("data", "processed")
+    X_train, y_train, X_val, y_val, X_test, y_test = load_datasets(proc_dir)
+    X_train_enc, X_val_enc, X_test_enc = encode_and_align(X_train, X_val, X_test)
+
+    best_model, info = find_best_model(X_train_enc, y_train, X_val_enc, y_val)
+    evaluate_on_test(best_model, X_test_enc, y_test)
+    save_model(best_model)
+
+if __name__ == "__main__":
+    main()
+
 
 # Code has been generated using Deepseek, Chatgpt, and Claude.ai then tweaked 
