@@ -2,7 +2,7 @@
 """
 main.py
 
-Streamlit app to predict Home Credit default risk using four pre-trained models
+Streamlit app to predict Credit default risk using four pre-trained models
 and a shared DataProcessor for preprocessing. Shows probabilities and predictions
 for each model in tidy tabs, and lets you download all results.
 """
