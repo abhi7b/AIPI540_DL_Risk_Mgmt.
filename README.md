@@ -92,7 +92,7 @@ Test Recall: 0.4493
 
 Upload a CSV of applicant data (feature set must match training) to generate default risk probabilities and predictions from four models.
 
-Access our Streamlit application [HERE]().
+Access our Streamlit application [HERE](https://aipi540dlriskmgmt-aebgej5tjmxtze6idxm4a4.streamlit.app/).
 
 ---
 
