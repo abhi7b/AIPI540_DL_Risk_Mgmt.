@@ -15,7 +15,6 @@ from math import log
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Dropout, Input, Add, BatchNormalization, Activation
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.regularizers import l1_l2
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (precision_recall_curve, recall_score,
@@ -126,18 +125,15 @@ def build_resnet(input_dim: int, init_bias: float):
     return model
 
 # -------------------------------
-# 7. Train Model with Callbacks
+# 7. Train Model
 # -------------------------------
 def train_model(model, X_train, y_train, X_val, y_val, class_weight):
-    early_stop = EarlyStopping(monitor="val_auc", patience=7, mode="max", restore_best_weights=True)
-    lr_reduce = ReduceLROnPlateau(monitor="val_auc", factor=0.5, patience=3, mode="max")
     history = model.fit(
         X_train, y_train,
         validation_data=(X_val, y_val),
         epochs=30,
         batch_size=256,
         class_weight=class_weight,
-        callbacks=[early_stop, lr_reduce],
         verbose=0
     )
     return history
@@ -178,7 +174,7 @@ def evaluate_model(model, X_test, y_test, threshold: float):
 # -------------------------------
 # 10. Save Model
 # -------------------------------
-def save_model(model, save_dir="models", fname="resnet_credit_risk.h5"):
+def save_model(model, save_dir="models", fname="resnet_oversample.h5"):
     os.makedirs(save_dir, exist_ok=True)
     path = os.path.join(save_dir, fname)
     model.save(path)
@@ -208,6 +204,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 # Code has been generated using Deepseek, Chatgpt, and Claude.ai then tweaked 

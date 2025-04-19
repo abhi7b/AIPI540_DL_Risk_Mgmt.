@@ -9,11 +9,8 @@ Financial institutions face significant credit risks related to defaults, fraud,
 
 ## Data Processing Pipeline
 
-The pipeline is designed for memory efficiency and clean dataset preparation.
+<!-- The pipeline is designed for memory efficiency and clean dataset preparation.
 The pipeline reads the `application_train.csv` file from the Home Credit raw data directory.
-
-### 1. **Raw Data Merging**
-Using Dask for memory-efficient processing of large CSV files, the pipeline merges the application training dataset from the Home Credit raw data directory.
 
 ### 2. **Data Cleaning**
 Performs data preprocessing using pandas, including:
@@ -31,7 +28,12 @@ This ensures that the `TARGET` variable is proportionally distributed across all
 
 ### 4. **Memory & File Management**
 - Unused intermediate files are deleted to save disk space
-- Garbage collection is invoked after each major step to free memory and ensure performance
+- Garbage collection is invoked after each major step to free memory and ensure performance -->
+
+The core component is the DataProcessor class which encapsulates preprocessing steps customized for different approaches:
+- Logistic Regression: Selects only numerical features
+- Traditional ML: Performs one-hot encoding with column alignment
+- Deep Learning: Adds feature scaling on top of one-hot encoding
 
 ---
 
@@ -75,12 +77,12 @@ Test AUROC: 0.6471
 - **Deep Learning Model**
 
 **ResNet with Oversampling**
-Test AUC: 0.6962
-Test Recall (Sensitivity): 0.4088
+Test AUC: 0.6943
+Test Recall: 0.4364
 
 **ResNet with Undersampling**
-Test AUC: 0.7053
-Test Recall (Sensitivity): 0.4461
+Test AUC: 0.7071
+Test Recall: 0.4493
 
 ---
 
@@ -88,7 +90,9 @@ Test Recall (Sensitivity): 0.4461
 
 - **Streamlit Web App**: 
 
-WIP
+Upload a CSV of applicant data (feature set must match training) to generate default risk probabilities and predictions from four models.
+
+Access our Streamlit application [HERE]().
 
 ---
 
@@ -111,9 +115,12 @@ python main.py
 ---
 
 ## Dataset & License
+
 This repository uses the [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/overview) dataset from Kaggle Competition, licensed under Kaggle competition rules.
 
 The Home Credit Default Risk dataset is a comprehensive collection of information aimed at enhancing credit risk assessment models. Provided by Home Credit, the dataset encompasses a wide array of data points, including application details, demographic information, and historical credit behavior. The primary objective is to predict the likelihood of a client defaulting on a loan.
+
+The dataset has 122 columns with 106 numerical and 16 categorical. There was 57 columns with significant(more than 10%) NaN values. Dataset shape: (307511, 122). The dataset is highly imbalanced ~8% minority class.
 
 Using only `application_train.csv` file from the Home Credit repository as performance of model deteriorates when other csv files are added in the training.
 
@@ -125,12 +132,25 @@ This project uses publicly available financial datasets in compliance with their
 
 ---
 
+## **Previous Efforts**  
+
+**JB Heaton et al. (2017)** demonstrated neural networks' effectiveness in financial risk management, showing deep learning models outperformed traditional methods in predicting market volatility
+[Paper: "Deep Learning for Finance: Deep Portfolios"](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2838013)
+
+**Justin Sirignano et al. (2018)** applied deep learning to mortgage risk assessment using a dataset of 120 million observations, achieving significant improvements in default prediction
+[Paper: "Deep Learning for Mortgage Risk"](https://arxiv.org/abs/1607.02470)
+
+**Jingtao Choi et al. (2020)** explored recurrent neural networks for market risk prediction, particularly focusing on LSTM models to capture temporal dependencies in financial time series
+[Paper: "Attention-based LSTM model for financial time series prediction"](https://www.sciencedirect.com/science/article/abs/pii/S0925231220301880)
+
+**Gao et al. (2022)** developed hybrid models combining CNN-LSTM architectures for credit risk assessment, integrating both spatial and temporal feature extraction
+
+---
+
 ## Presentation Link
 
 View our presentation [HERE](https://docs.google.com/presentation/d/1XSYJ6GrIr3v_t4enZNBWPNALS4c5bxAqzMUitaKkjZY/edit#slide=id.p).
 
 ---
 
-## Streamlit Application
-
-Access our Streamlit application [HERE]().
+## The README has been drafted manually and enhanced using ChatGPT and Claude.ai.
