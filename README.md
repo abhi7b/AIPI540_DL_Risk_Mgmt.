@@ -110,7 +110,7 @@ Assuming your virtual environment is setup and activated, and that the requireme
 you can then run the following to startup a local instance of the Streamlit application.
 
 ```bash
-python main.py
+streamlit run main.py
 ```
 ---
 
@@ -121,8 +121,6 @@ This repository uses the [Home Credit Default Risk](https://www.kaggle.com/compe
 The Home Credit Default Risk dataset is a comprehensive collection of information aimed at enhancing credit risk assessment models. Provided by Home Credit, the dataset encompasses a wide array of data points, including application details, demographic information, and historical credit behavior. The primary objective is to predict the likelihood of a client defaulting on a loan.
 
 The dataset has 122 columns with 106 numerical and 16 categorical. There was 57 columns with significant(more than 10%) NaN values. Dataset shape: (307511, 122). The dataset is highly imbalanced ~8% minority class.
-
-Using only `application_train.csv` file from the Home Credit repository as performance of model deteriorates when other csv files are added in the training.
 
 ---
 
